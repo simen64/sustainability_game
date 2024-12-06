@@ -12,8 +12,8 @@ class Game:
         self.FPS = 60
 
         # Screen settings
-        self.GAME_WIDTH = 1920
-        self.GAME_HEIGHT = 1080
+        self.GAME_WIDTH = 960
+        self.GAME_HEIGHT = 540
         self.LOWER_MARGIN = 100
         self.SIDE_MARGIN = 300
 
@@ -25,7 +25,7 @@ class Game:
 
         # Tiling settings
         self.TILE_SIZE = 32
-        self.ROWS = self.GAME_HEIGHT // self.TILE_SIZE
+        self.ROWS = self.GAME_HEIGHT // self.TILE_SIZE + 1
         self.COLS = self.GAME_WIDTH // self.TILE_SIZE
         print(self.ROWS, self.COLS)
 
@@ -45,7 +45,7 @@ class Game:
         self.save_img = pygame.image.load("./assets/images/UI/save_btn.png").convert_alpha()
         self.load_img = pygame.image.load("./assets/images/UI/load_btn.png").convert_alpha()
 
-        self.cave_background = pygame.image.load("./assets/images/backgrounds/cave.png").convert_alpha()
+        self.cave_background = pygame.image.load("./assets/images/backgrounds/factory.png").convert_alpha()
 
 
         # Define colours
@@ -85,13 +85,13 @@ class Game:
         self.screen.fill(self.GREEN)
         width = self.cave_background.get_width()
         for x in range(0, self.GAME_WIDTH, width):
-            self.screen.blit(self.cave_background, (x * 0.5, 0)) 
+            self.screen.blit(self.cave_background, (x * 0.5, 0))
 
 
     def draw_grid(self):
         # vertical lines
         for c in range(self.COLS + 1):
-            pygame.draw.line(self.screen, self.WHITE, (c * self.TILE_SIZE, 0), (c * self.TILE_SIZE, self.GAME_HEIGHT - 25))
+            pygame.draw.line(self.screen, self.WHITE, (c * self.TILE_SIZE, 0), (c * self.TILE_SIZE, self.GAME_HEIGHT))
             
         # horizontal lines
         for c in range(self.ROWS + 1):
@@ -126,13 +126,18 @@ class Game:
                         writer.writerow(row)
 
             if self.load_button.draw(self.screen):
-                with open(f'level{self.level}_data.csv', newline='') as csvfile:
-                    reader = csv.reader(csvfile, delimiter = ',')
-                    for x, row in enumerate(reader):
-                        for y, tile in enumerate(row):
-                            self.world_data[x][y] = int(tile)
+                try:
+                    with open(f'level{self.level}_data.csv', newline='') as csvfile:
+                        reader = csv.reader(csvfile, delimiter = ',')
+                        for x, row in enumerate(reader):
+                            for y, tile in enumerate(row):
+                                self.world_data[x][y] = int(tile)
+
+                except FileNotFoundError:
+                    pass
 
             pygame.draw.rect(self.screen, self.GREEN, (self.GAME_WIDTH, 0, self.SIDE_MARGIN, self.GAME_WIDTH))
+            pygame.draw.rect(self.screen, self.RED, (0, self.GAME_HEIGHT, self.GAME_WIDTH, self.GAME_HEIGHT + self.LOWER_MARGIN))
 
             self.button_count = 0
             for self.button_count, i in enumerate(self.button_list):
@@ -145,7 +150,7 @@ class Game:
             pos = pygame.mouse.get_pos()
             x = (pos[0]) // self.TILE_SIZE
             y = pos[1] // self.TILE_SIZE
-
+ 
             if pos[0] < self.GAME_WIDTH and pos[1] < self.GAME_HEIGHT:
                 #update tile value
                 if pygame.mouse.get_pressed()[0] == 1:
@@ -158,6 +163,12 @@ class Game:
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     sys.exit()
+                
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_UP:
+                        self.level += 1
+                    if event.key == pygame.K_DOWN and self.level > 0:
+                        self.level -= 1
 
             pygame.display.update()
             self.clock.tick(self.FPS)
