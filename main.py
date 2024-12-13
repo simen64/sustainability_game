@@ -2,6 +2,7 @@ import pygame
 import sys
 import button
 import csv
+import os
 
 class Player(pygame.sprite.Sprite):
     def __init__(self, x, y, acceleration, gravity, sprite):
@@ -21,6 +22,11 @@ class Player(pygame.sprite.Sprite):
 
         self.image = pygame.image.load(sprite).convert_alpha()
 
+        # scale image
+        original_size = self.image.get_size()
+        new_size = (original_size[0] * 2, original_size[1] * 2)
+        self.image = pygame.transform.scale(self.image, new_size)
+
         self.rect = self.image.get_rect()
         self.rect.topleft = (x, y)
 
@@ -38,8 +44,45 @@ class Player(pygame.sprite.Sprite):
             self.vel.y = -10  # Jump velocity
             self.grounded = False
 
+    def get_tile_collisions(self, world_data, TILE_SIZE):
+        collisions = []
+        for y, row in enumerate(world_data):
+            for x, tile in enumerate(row):
+                if tile >= 0:  # Tile exists
+                    tile_rect = pygame.Rect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE)
+                    if self.rect.colliderect(tile_rect):
+                        collisions.append(tile_rect)
+        return collisions
 
-    def apply_physics(self):
+    def checkCollisionsx(self, world_data, TILE_SIZE):
+        collisions = self.get_tile_collisions(world_data, TILE_SIZE)
+        for tile in collisions:
+            if self.vel.x > 0:  # Hit tile moving right
+                self.pos.x = tile.left - self.rect.w
+                self.rect.x = self.pos.x
+            elif self.vel.x < 0:  # Hit tile moving left
+                self.pos.x = tile.right
+                self.rect.x = self.pos.x
+
+    def checkCollisionsy(self, world_data, TILE_SIZE):
+        self.on_ground = False
+        self.rect.bottom += 1
+        collisions = self.get_tile_collisions(world_data, TILE_SIZE)
+        for tile in collisions:
+            if self.vel.y > 0:  # Hit tile from the top
+                self.on_ground = True
+                self.is_jumping = False
+                self.vel.y = 0
+                self.pos.y = tile.top
+                self.rect.bottom = self.pos.y
+            elif self.vel.y < 0:  # Hit tile from the bottom
+                self.vel.y = 0
+                self.pos.y = tile.bottom + self.rect.h
+                self.rect.bottom = self.pos.y
+
+
+
+    def apply_physics(self, world_data, TILE_SIZE):
         # Apply gravity
         self.acc.y = self.gravity
 
@@ -53,18 +96,13 @@ class Player(pygame.sprite.Sprite):
         # Update rect position for collision detection
         self.rect.topleft = self.pos
 
-        # Ground collision simulation (basic example)
-        if self.rect.bottom >= 540:  # Assume ground level is at y=540
-            self.rect.bottom = 540
-            self.pos.y = self.rect.y
-            self.vel.y = 0
-            self.grounded = True
-
-
+        # Tile-based collision detection
+        self.checkCollisionsx(world_data, TILE_SIZE)
+        self.checkCollisionsy(world_data, TILE_SIZE)
 
     def update(self, keys, world_data, TILE_SIZE):
         self.handle_input(keys)
-        self.apply_physics()
+        self.apply_physics(world_data, TILE_SIZE)
 
     def draw(self, screen):
         screen.blit(self.image, self.rect)
@@ -96,7 +134,7 @@ class Game:
         self.COLS = self.GAME_WIDTH // self.TILE_SIZE
         print(self.ROWS, self.COLS)
 
-        self.TILE_TYPES = 1
+        self.TILE_TYPES = len(os.listdir("./assets/images/tiles/"))
 
         self.current_tile = 0
 
@@ -105,9 +143,12 @@ class Game:
         self.tile_list = []
 
         for i in range(self.TILE_TYPES):
+            print("LOAD IMAGE: ", i)
             img = pygame.image.load(f"./assets/images/tiles/{i}.png").convert_alpha()
             img = pygame.transform.scale(img, (self.TILE_SIZE, self.TILE_SIZE))
             self.tile_list.append(img)
+
+        print(self.tile_list)
 
         self.save_img = pygame.image.load("./assets/images/UI/save_btn.png").convert_alpha()
         self.load_img = pygame.image.load("./assets/images/UI/load_btn.png").convert_alpha()
@@ -141,6 +182,7 @@ class Game:
         self.button_col = 0
         self.button_row = 0
         for i in range(len(self.tile_list)):
+            print("TILE LIST: ", i)
             self.tile_button = button.Button(self.GAME_WIDTH + (75 * self.button_col) + 50, 75 * self.button_row + 50, self.tile_list[i], 1)
             self.button_list.append(self.tile_button)
             self.button_col += 1
@@ -283,4 +325,5 @@ class Game:
             self.clock.tick(self.FPS)
 
 
-Game().run_game()
+#Game().run_game()
+Game().run_editor()
